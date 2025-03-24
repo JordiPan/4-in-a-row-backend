@@ -6,7 +6,8 @@ import http from 'http';
 const PORT = 3000;
 const app = express();
 const server = http.createServer(app);
-
+//moet object zijn voor dynamische toevoeging????
+const rooms = {};
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:5500');
@@ -30,36 +31,75 @@ const io = new Server(server, {
   io.on('connection', (socket) => { 
     socket.emit('socketId', socket.id);
     console.log('a user connected: ' + socket.id);
-    socket.on('disconnect', () => {
-      console.log('user disconnected');
+
+    //disconnect events
+    socket.on('disconnect', () => {      
+      Object.keys(rooms).forEach(roomId => {
+        leaveRoom(roomId, socket.id);
+      });
+      console.log('user disconnected', socket.id);
+
     });
 
-    socket.on('createRoom', (room, creator) => { 
-        socket.join(room);
-        console.log('room created: ' + room);
+    socket.on('leaveRoom', (roomId) => {
+      leaveRoom(roomId);
+    });
+
+    socket.on('createRoom', (creator, callback) => { 
+      const roomId = generateRoomId();
+      rooms[roomId] = {
+        'creatorId': socket.id,
+        'players': [{
+          'id': socket.id, 
+          'username': creator
+        }],
+      };
+      console.log('room created: ' + roomId);
+      callback(roomId, rooms[roomId]);
     });
 
     socket.on('test', (msg) => {
       console.log(msg);
     });
 
-    socket.on('joinRoom', (room) => {
-        socket.join(room);
-        console.log('user joined room: ' + room);
+    socket.on('joinRoom', (roomId, username, callback) => {
+        rooms[roomId].players.push({
+          'id': socket.id,
+          'username': username 
+        });
+        callback(rooms[roomId]);
     });
 
-    socket.on('leaveRoom', (room) => {
-        socket.leave(room);
-        console.log('user left room: ' + room);
+    socket.on('leaveRoom', (roomId) => {
+        leaveRoom(roomId, socket.id);
+        console.log('user left room: ' + roomId);
     });
 
-    socket.on('getRooms', () => {
-        const rooms = Object.keys(io.sockets.adapter.rooms);
+    socket.on('getRooms', (callback) => {
+
         console.log("sending rooms: ",rooms);
-        socket.emit('showRooms', rooms);
+        callback(rooms);
     })
 });
 
+function generateRoomId() {
+  //Het quote niet als het begint met letter...
+  return Math.random().toString(21).toUpperCase().substring(4, 12);
+}
+
+function leaveRoom(roomId, socketId) {
+  const room = rooms[roomId];
+  const playerIndex = room.players.findIndex(player => player.id === socketId);
+  if (playerIndex >= 0) {
+    room.players.splice(playerIndex, 1);
+    console.log('user left room: ' + roomId);
+
+    if (room.players.length === 0) {
+      delete rooms[roomId];
+      console.log('room deleted: ' + roomId);
+    }
+  }
+}
 server.listen(PORT, () => {
     console.log('listening on port: ' + PORT);
   });

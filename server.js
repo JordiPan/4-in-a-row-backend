@@ -49,6 +49,7 @@ const io = new Server(server, {
       const roomId = generateRoomId();
       rooms[roomId] = {
         'creatorId': socket.id,
+        'full': false,
         'players': [{
           'id': socket.id, 
           'username': creator
@@ -62,12 +63,19 @@ const io = new Server(server, {
       console.log(msg);
     });
 
+    //misschien ooit spectators in het systeem??
     socket.on('joinRoom', (roomId, username, callback) => {
-        rooms[roomId].players.push({
+      const room = rooms[roomId];
+      if(room.full === true) {
+        callback(null)
+      }
+      room.players.push({
           'id': socket.id,
           'username': username 
-        });
-        callback(rooms[roomId]);
+      });
+
+      room.full = true;
+      callback(rooms[roomId]);
     });
 
     socket.on('leaveRoom', (roomId) => {
@@ -91,7 +99,8 @@ function leaveRoom(roomId, socketId) {
   const room = rooms[roomId];
   const playerIndex = room.players.findIndex(player => player.id === socketId);
   if (playerIndex >= 0) {
-    room.players.splice(playerIndex, 1);
+    room?.full = false;
+    room?.players.splice(playerIndex, 1);
     console.log('user left room: ' + roomId);
 
     if (room.players.length === 0) {

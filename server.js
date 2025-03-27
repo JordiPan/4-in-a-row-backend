@@ -99,8 +99,8 @@ function leaveRoom(roomId, socketId) {
   const room = rooms[roomId];
   const playerIndex = room.players.findIndex(player => player.id === socketId);
   if (playerIndex >= 0) {
-    room?.full = false;
-    room?.players.splice(playerIndex, 1);
+    room.full = false;
+    room.players.splice(playerIndex, 1);
     console.log('user left room: ' + roomId);
 
     if (room.players.length === 0) {

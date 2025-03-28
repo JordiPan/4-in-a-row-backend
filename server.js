@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import express from 'express';
 import http from 'http';
+import { callbackify } from 'util';
 
 
 const PORT = 3000;
@@ -41,8 +42,9 @@ const io = new Server(server, {
 
     });
 
-    socket.on('leaveRoom', (roomId) => {
+    socket.on('leaveRoom', (roomId, callback) => {
       leaveRoom(roomId);
+      callback();
     });
 
     socket.on('createRoom', (creator, callback) => { 

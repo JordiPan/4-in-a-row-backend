@@ -61,10 +61,6 @@ const io = new Server(server, {
       callback(roomId, rooms[roomId]);
     });
 
-    socket.on('test', (msg) => {
-      console.log(msg);
-    });
-
     //misschien ooit spectators in het systeem??
     socket.on('joinRoom', (roomId, username, callback) => {
       const room = rooms[roomId];
@@ -86,8 +82,7 @@ const io = new Server(server, {
     });
 
     socket.on('getRooms', (callback) => {
-
-        console.log("sending rooms: ",rooms);
+        console.log("sending rooms: ");
         callback(rooms);
     })
 });

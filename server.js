@@ -1,7 +1,6 @@
 import { Server } from 'socket.io';
 import express from 'express';
 import http from 'http';
-import { callbackify } from 'util';
 
 
 const PORT = 3000;
@@ -25,7 +24,6 @@ const io = new Server(server, {
     cors: {
       origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
         methods: ["GET", "POST"],
-        // allowedHeaders: ["my-custom-header"]
     },
   });
 
@@ -36,7 +34,7 @@ const io = new Server(server, {
     //disconnect events
     socket.on('disconnect', () => {      
       Object.keys(rooms).forEach(roomId => {
-        leaveRoom(roomId, socket.id);
+        leaveRoom(roomId, socket.id, socket);
       });
       console.log('user disconnected', socket.id);
 
@@ -58,31 +56,38 @@ const io = new Server(server, {
         }],
       };
       console.log('room created: ' + roomId);
+      socket.join(roomId);
       callback(roomId, rooms[roomId]);
     });
 
     //misschien ooit spectators in het systeem??
     socket.on('joinRoom', (roomId, username, callback) => {
       const room = rooms[roomId];
-      if(room.full === true) {
+      if(room.full === true || !room) {
         callback(null)
+        return;
       }
       room.players.push({
           'id': socket.id,
           'username': username 
       });
-
-      room.full = true;
+      socket.join(roomId);
+      console.log('user joined room');
+      if (room.players.length >= 2) room.full = true;
+      socket.to(roomId).emit("refresh", room, roomId);
       callback(rooms[roomId]);
     });
 
     socket.on('leaveRoom', (roomId) => {
-        leaveRoom(roomId, socket.id);
-        console.log('user left room: ' + roomId);
+      const room = rooms[roomId];
+      console.log(socket.id+' left room: ' + roomId);
+      leaveRoom(roomId, socket.id, socket);
+      socket.to(roomId).emit("refresh", room, roomId);
+        
     });
 
     socket.on('getRooms', (callback) => {
-        console.log("sending rooms: ");
+        console.log("sending rooms");
         callback(rooms);
     })
 });
@@ -92,13 +97,14 @@ function generateRoomId() {
   return Math.random().toString(21).toUpperCase().substring(4, 12);
 }
 
-function leaveRoom(roomId, socketId) {
+function leaveRoom(roomId, socketId, socket) {
   const room = rooms[roomId];
+  
   const playerIndex = room.players.findIndex(player => player.id === socketId);
   if (playerIndex >= 0) {
+    socket.leave(roomId);
     room.full = false;
     room.players.splice(playerIndex, 1);
-    console.log('user left room: ' + roomId);
 
     if (room.players.length === 0) {
       delete rooms[roomId];

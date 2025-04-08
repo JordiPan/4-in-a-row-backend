@@ -50,6 +50,9 @@ const io = new Server(server, {
       rooms[roomId] = {
         'creatorId': socket.id,
         'full': false,
+        'board': createBoard(),
+        'turnColor': '',
+        'turnCount': 0,
         'players': [{
           'id': socket.id, 
           'username': creator
@@ -83,13 +86,18 @@ const io = new Server(server, {
       console.log(socket.id+' left room: ' + roomId);
       leaveRoom(roomId, socket.id, socket);
       socket.to(roomId).emit("refresh", room, roomId);
-        
     });
 
     socket.on('getRooms', (callback) => {
         console.log("sending rooms");
         callback(rooms);
     })
+    socket.on('startGame', (roomId) => {
+      let room = rooms[roomId];
+      //set first turn
+      decideFirst(room);
+      io.to(roomId).emit("startGame", room.turnColor);
+  })
 });
 
 function generateRoomId() {
@@ -112,6 +120,31 @@ function leaveRoom(roomId, socketId, socket) {
     }
   }
 }
+
+function createBoard() {
+  let board = new Array(6);
+  for (let i = 0; i < board.length; i++) {
+    board[i] = new Array(7);
+  }
+  
+  // Het zet in alle vakken van de model "-"
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 7; col++) {
+      board[row][col] = "-";
+    }
+  }
+  return board;
+}
+
+function decideFirst(room) {
+  const decider = Math.floor(Math.random() * (2 - 1 + 1)) + 1;
+  if (decider == 1) {
+    room.turnColor = 'blue';
+  } else {
+    room.turnColor = 'red';
+  }
+}
+
 server.listen(PORT, () => {
     console.log('listening on port: ' + PORT);
   });

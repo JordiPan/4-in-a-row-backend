@@ -51,7 +51,8 @@ const io = new Server(server, {
         'creatorId': socket.id,
         'full': false,
         'board': createBoard(),
-        'turnColor': '',
+        'turn': {name: '', color: ''},
+        'lastPlacement': [],
         'turnCount': 0,
         'players': [{
           'id': socket.id, 
@@ -92,12 +93,23 @@ const io = new Server(server, {
         console.log("sending rooms");
         callback(rooms);
     })
+
     socket.on('startGame', (roomId) => {
       let room = rooms[roomId];
-      //set first turn
       decideFirst(room);
-      io.to(roomId).emit("startGame", room.turnColor);
-  })
+      io.to(roomId).emit("startGame", room.turn.color);
+    })
+
+    socket.on('placeChip', (roomId, col, callback) => {
+      let room = rooms[roomId];
+      const result = placeChip(col, room, room.turn.color);
+      callback(result);
+      
+      if(result) {
+        switchTurns(room);
+        io.to(roomId).emit("updateBoard", room);
+      }
+    })
 });
 
 function generateRoomId() {
@@ -127,10 +139,10 @@ function createBoard() {
     board[i] = new Array(7);
   }
   
-  // Het zet in alle vakken van de model "-"
+  // Het zet in alle vakken van de model ""
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 7; col++) {
-      board[row][col] = "-";
+      board[row][col] = "";
     }
   }
   return board;
@@ -139,9 +151,39 @@ function createBoard() {
 function decideFirst(room) {
   const decider = Math.floor(Math.random() * (2 - 1 + 1)) + 1;
   if (decider == 1) {
-    room.turnColor = 'blue';
+    room.turn.color = 'blue';
+    room.turn.name = room.players[0].username;
   } else {
-    room.turnColor = 'red';
+    room.turn.color = 'red';
+    room.turn.name = room.players[1].username;
+  }
+}
+
+function placeChip(col, room, turnColor) {
+  let board = room.board;
+  for (let row = 5; row >= 0; row--) {
+    if (board[row][col] === "") {
+      board[row][col] = turnColor;  
+      room.lastPlacement = [row, col];
+      room.turnCount += 1;
+
+      //check hier ook maar voor de winnaar later | wel misschien andere emit doen voor als er een winnaar is
+      //checkWinner([row, col])
+      //if (room.turncount 42) {return 2} voor een gelijkspel ofzo
+      return true;
+    }
+  }
+  return false;
+}
+
+function switchTurns(room) {
+  if(room.turn.color === 'blue'){
+    room.turn.color = 'red';
+    room.turn.name = room.players[1].username;
+  }
+  else {
+    room.turn.color = 'blue';
+    room.turn.name = room.players[0].username;
   }
 }
 

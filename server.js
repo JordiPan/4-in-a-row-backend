@@ -52,10 +52,10 @@ const io = new Server(server, {
       const roomId = generateRoomId();
       rooms[roomId] = {
         'creatorId': socket.id,
-        'full': false,
+        'full': false, //werkt nog niet echt
         'board': createBoard(),
         'turn': {name: '', color: ''},
-        'lastPlacement': [],
+        // 'lastPlacement': [],
         'gameState': 0,
         'turnCount': 0,
         'players': [createPlayer(socket.id, creator)],
@@ -65,6 +65,13 @@ const io = new Server(server, {
       callback(roomId, rooms[roomId]);
     });
 
+    socket.on('rematch', (roomId) => {
+      const room = rooms[roomId];
+      room.board = createBoard();
+      room.turnCount = 0;
+      decideFirst(room);
+      io.to(roomId).emit("rematch", room.turn.color);
+    })
     //misschien ooit spectators in het systeem??
     socket.on('joinRoom', (roomId, username, callback) => {
       const room = rooms[roomId];
@@ -101,10 +108,10 @@ const io = new Server(server, {
     //geen callback nodig uiteindelijk
     socket.on('placeChip', (roomId, col, callback) => {
       let room = rooms[roomId];
-      placeChip(col, room, room.turn.color);
-      callback(room.gameState);
-      if(room.gameState !== 3) {
-        if(room.gameState === 0){
+      const state = placeChip(col, room, room.turn.color);
+      callback(state);
+      if(state !== 3) {
+        if(state === 0){
           switchTurns(room);
         }
         io.to(roomId).emit("updateBoard", room);
@@ -174,7 +181,7 @@ function placeChip(col, room, turnColor) {
   for (let row = 5; row >= 0; row--) {
     if (board[row][col] === "") {
       board[row][col] = turnColor;  
-      room.lastPlacement = [row, col];
+      // room.lastPlacement = [row, col];
       
       return checkWinner(row, col, room);
     }

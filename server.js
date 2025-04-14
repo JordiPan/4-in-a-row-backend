@@ -6,8 +6,13 @@ import http from 'http';
 const PORT = 3000;
 const app = express();
 const server = http.createServer(app);
-//moet object zijn voor dynamische toevoeging????
 const rooms = {};
+const directions = [
+  { row: 0, col: 1 },  // Horizontaal
+  { row: 1, col: 0 },  // Verticaal
+  { row: 1, col: 1 },  // Diagonaal (rechts)
+  { row: 1, col: -1 }  // Diagonaal (links)
+];
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:5500');
@@ -31,13 +36,11 @@ const io = new Server(server, {
     socket.emit('socketId', socket.id);
     console.log('a user connected: ' + socket.id);
 
-    //disconnect events
     socket.on('disconnect', () => {      
       Object.keys(rooms).forEach(roomId => {
         leaveRoom(roomId, socket.id, socket);
       });
       console.log('user disconnected', socket.id);
-
     });
 
     socket.on('leaveRoom', (roomId, callback) => {
@@ -53,11 +56,9 @@ const io = new Server(server, {
         'board': createBoard(),
         'turn': {name: '', color: ''},
         'lastPlacement': [],
+        'gameState': 0,
         'turnCount': 0,
-        'players': [{
-          'id': socket.id, 
-          'username': creator
-        }],
+        'players': [createPlayer(socket.id, creator)],
       };
       console.log('room created: ' + roomId);
       socket.join(roomId);
@@ -71,10 +72,7 @@ const io = new Server(server, {
         callback(null)
         return;
       }
-      room.players.push({
-          'id': socket.id,
-          'username': username 
-      });
+      room.players.push(createPlayer(socket.id, username));
       socket.join(roomId);
       console.log('user joined room');
       if (room.players.length >= 2) room.full = true;
@@ -99,27 +97,28 @@ const io = new Server(server, {
       decideFirst(room);
       io.to(roomId).emit("startGame", room.turn.color);
     })
-
+    //kolom vol kan gecheckt worden via board van OGH/client
+    //geen callback nodig uiteindelijk
     socket.on('placeChip', (roomId, col, callback) => {
       let room = rooms[roomId];
-      const result = placeChip(col, room, room.turn.color);
-      callback(result);
-      
-      if(result) {
-        switchTurns(room);
+      placeChip(col, room, room.turn.color);
+      callback(room.gameState);
+      if(room.gameState !== 3) {
+        if(room.gameState === 0){
+          switchTurns(room);
+        }
         io.to(roomId).emit("updateBoard", room);
       }
     })
 });
 
 function generateRoomId() {
-  //Het quote niet als het begint met letter...
   return Math.random().toString(21).toUpperCase().substring(4, 12);
 }
-
+//geen socketid nodig, gewoon socket 
 function leaveRoom(roomId, socketId, socket) {
   const room = rooms[roomId];
-  
+
   const playerIndex = room.players.findIndex(player => player.id === socketId);
   if (playerIndex >= 0) {
     socket.leave(roomId);
@@ -139,7 +138,6 @@ function createBoard() {
     board[i] = new Array(7);
   }
   
-  // Het zet in alle vakken van de model ""
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 7; col++) {
       board[row][col] = "";
@@ -148,6 +146,13 @@ function createBoard() {
   return board;
 }
 
+function createPlayer(id, username) {
+  return {
+    id,
+    username,
+    wins: 0
+  }
+}
 function decideFirst(room) {
   const decider = Math.floor(Math.random() * (2 - 1 + 1)) + 1;
   if (decider == 1) {
@@ -158,24 +163,71 @@ function decideFirst(room) {
     room.turn.name = room.players[1].username;
   }
 }
-
+/* GAMESTATES RETURN
+0=geen winnaar, ga door
+1=gelijkspel
+2=winnaar SPOTTED
+3=kolom vol (kan liever anders opgelost worden)
+*/
 function placeChip(col, room, turnColor) {
   let board = room.board;
   for (let row = 5; row >= 0; row--) {
     if (board[row][col] === "") {
       board[row][col] = turnColor;  
       room.lastPlacement = [row, col];
-      room.turnCount += 1;
-
-      //check hier ook maar voor de winnaar later | wel misschien andere emit doen voor als er een winnaar is
-      //checkWinner([row, col])
-      //if (room.turncount 42) {return 2} voor een gelijkspel ofzo
-      return true;
+      
+      return checkWinner(row, col, room);
     }
   }
-  return false;
+  return 3;
 }
 
+function checkWinner(row, col, room) {
+  for (let { row: dirRow, col: dirCol } of directions) {
+    const forwardCount = counter(row, col, dirRow, dirCol, room);
+    const backwardCount = counter(row, col, -dirRow, -dirCol, room);
+    const count = forwardCount + backwardCount - 1;
+    
+    if (count >= 4) {
+      addWin(room);
+      room.gameState = 2;
+      return room.gameState;
+    }
+  }
+
+  room.turnCount += 1;
+  if (room.turnCount === 42) {
+    room.gameState = 1;
+    return room.gameState;
+  }
+
+  room.gameState = 0;
+  return room.gameState;
+}
+
+function counter(row, col, dirRow, dirCol, room) {
+  let count = 0;
+  while (
+      row >= 0 && row < 6 &&
+      col >= 0 && col < 7 &&
+      room.board[row][col] === room.turn.color
+  ) {
+      
+      count++;
+      row += dirRow;
+      col += dirCol;
+    }
+  return count;
+}
+
+function addWin(room) {
+  if(room.turn.color === 'blue'){
+    room.players[0].wins += 1; 
+  }
+  else {
+    room.players[1].wins += 1; 
+  }
+}
 function switchTurns(room) {
   if(room.turn.color === 'blue'){
     room.turn.color = 'red';

@@ -9,8 +9,8 @@ class Utils {
   generateRoomId() {
     return Math.random().toString(21).toUpperCase().substring(4, 12);
   }
-  //geen socketid nodig, gewoon socket
-  leaveRoom(roomId, socket, rooms) {
+  //als creator weggaat vernietig kamer meteen dan
+  leaveRoom(roomId, socket, rooms, io) {
     const room = rooms[roomId];
     const id = socket.id;
     const playerIndex = room.players.findIndex(
@@ -18,10 +18,11 @@ class Utils {
     );
     if (playerIndex >= 0) {
       socket.leave(roomId);
-      room.full = false;
+      // room.full = false;
       room.players.splice(playerIndex, 1);
 
-      if (room.players.length === 0) {
+      if (id === room.creatorId) {
+        io.socketsLeave(roomId);
         delete rooms[roomId];
         console.log("room deleted: " + roomId);
       }

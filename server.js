@@ -7,6 +7,8 @@ import Utils from './Utils.js';
 // verander disconnect in server side zodat het de andere dude in de room emit dat guy weg is. 
 // stuur dude terug naar waiting room via refresh
 // misschien ook cleanup voor promises die bezig zijn
+
+// TODO: reconnection met andere id 
 const PORT = 3000;
 const app = express();
 const server = http.createServer(app);
@@ -37,7 +39,7 @@ const io = new Server(server, {
 
     socket.on('disconnect', () => {      
       Object.keys(rooms).forEach(roomId => {
-        Utils.leaveRoom(roomId, socket, rooms);
+        Utils.leaveRoom(roomId, socket, rooms, io);
       });
       console.log('user disconnected', socket.id);
     });
@@ -47,6 +49,7 @@ const io = new Server(server, {
       rooms[roomId] = {
         'creatorId': socket.id,
         'full': false, //werkt nog niet echt
+        'inGame': false, //werkt nog niet echt
         'board': null,
         'turn': {name: '', color: ''},
         'gameState': 0,
@@ -62,7 +65,7 @@ const io = new Server(server, {
       const room = rooms[roomId];
       Utils.cleanGame(room);
       Utils.decideFirst(room);
-      io.to(roomId).emit("rematch", room.turn.color);
+      io.to(roomId).emit("rematch", room.turn.color, room.board);
     })
     //misschien ooit spectators in het systeem??
     socket.on('joinRoom', (roomId, username, callback) => {
@@ -74,20 +77,24 @@ const io = new Server(server, {
       room.players.push(Utils.createPlayer(socket.id, username));
       socket.join(roomId);
       console.log('user joined room');
-      if (room.players.length >= 2) room.full = true;
+      // if (room.players.length >= 2) room.full = true;
       socket.to(roomId).emit("refresh", room, roomId);
       callback(rooms[roomId]);
     });
 
     socket.on('leaveRoom', (roomId, callback) => {
-      Utils.leaveRoom(roomId, socket, rooms);
-      callback();
-      console.log(socket.id+' left room: ' + roomId);
-
-      if(rooms[roomId]) {
+      console.log(socket.id + ' left room: ' + roomId);
+      
+      if(socket.id === rooms[roomId].creatorId) {
+        socket.to(roomId).emit("refresh", null, null);
+        Utils.leaveRoom(roomId, socket, rooms, io);
+      }
+      else {
         const room = rooms[roomId];
+        Utils.leaveRoom(roomId, socket, rooms, io);
         socket.to(roomId).emit("refresh", room, roomId);
       }
+      callback();
     });
 
     socket.on('getRooms', (callback) => {
@@ -110,7 +117,7 @@ const io = new Server(server, {
       }
       io.to(roomId).emit("updateBoard", room);
     })
-    
+
     socket.on('stopGame', (roomId) => {
       const room = rooms[roomId];
       io.to(roomId).emit("refresh", room, roomId);

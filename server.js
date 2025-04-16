@@ -5,6 +5,7 @@ import Utils from './Utils.js';
 
 // als disconnect in game: 
 // verander disconnect in server side zodat het de andere dude in de room emit dat guy weg is. 
+// stuur dude terug naar waiting room via refresh
 // misschien ook cleanup voor promises die bezig zijn
 const PORT = 3000;
 const app = express();
@@ -46,9 +47,8 @@ const io = new Server(server, {
       rooms[roomId] = {
         'creatorId': socket.id,
         'full': false, //werkt nog niet echt
-        'board': Utils.createBoard(),
+        'board': null,
         'turn': {name: '', color: ''},
-        // 'lastPlacement': [],
         'gameState': 0,
         'turnCount': 0,
         'players': [Utils.createPlayer(socket.id, creator)],
@@ -60,8 +60,7 @@ const io = new Server(server, {
 
     socket.on('rematch', (roomId) => {
       const room = rooms[roomId];
-      room.board = Utils.createBoard();
-      room.turnCount = 0;
+      Utils.cleanGame(room);
       Utils.decideFirst(room);
       io.to(roomId).emit("rematch", room.turn.color);
     })
@@ -98,21 +97,23 @@ const io = new Server(server, {
 
     socket.on('startGame', (roomId) => {
       let room = rooms[roomId];
+      Utils.cleanGame(room);
       Utils.decideFirst(room);
-      io.to(roomId).emit("startGame", room.turn.color);
+      io.to(roomId).emit("startGame", room.turn.color, room.board);
     })
-    //kolom vol kan gecheckt worden via board van OGH/client
-    //geen callback nodig uiteindelijk
-    socket.on('placeChip', (roomId, col, callback) => {
+
+    socket.on('placeChip', (roomId, col) => {
       let room = rooms[roomId];
       const state = Utils.placeChip(col, room, room.turn.color);
-      callback(state);
-      if(state !== 3) {
-        if(state === 0){
-          Utils.switchTurns(room);
-        }
-        io.to(roomId).emit("updateBoard", room);
+      if(state === 0) {
+        Utils.switchTurns(room);
       }
+      io.to(roomId).emit("updateBoard", room);
+    })
+    
+    socket.on('stopGame', (roomId) => {
+      const room = rooms[roomId];
+      io.to(roomId).emit("refresh", room, roomId);
     })
 });
 

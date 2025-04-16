@@ -63,7 +63,6 @@ class Utils {
       0=geen winnaar, ga door
       1=gelijkspel
       2=winnaar SPOTTED
-      3=kolom vol (kan liever anders opgelost worden)
       */
   placeChip(col, room, turnColor) {
     let board = room.board;
@@ -74,7 +73,6 @@ class Utils {
         return this.checkWinner(row, col, room);
       }
     }
-    return 3;
   }
 
   checkWinner(row, col, room) {
@@ -131,6 +129,10 @@ class Utils {
       room.turn.color = "blue";
       room.turn.name = room.players[0].username;
     }
+  }
+  cleanGame(room) {
+    room.board = this.createBoard();
+    room.turnCount = 0;
   }
 }
 export default new Utils();

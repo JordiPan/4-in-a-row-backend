@@ -39,23 +39,17 @@ const io = new Server(server, {
 
     socket.on('disconnect', () => {      
       Object.keys(rooms).forEach(roomId => {
-        Utils.leaveRoom(roomId, socket, rooms, io);
+        const player = rooms[roomId].players.find((player) => {return player.id === socket.id});
+        if(player) {
+          Utils.leaveRoom(roomId, socket, rooms, io);
+        }
       });
       console.log('user disconnected', socket.id);
     });
 
     socket.on('createRoom', (creator, callback) => { 
       const roomId = Utils.generateRoomId();
-      rooms[roomId] = {
-        'creatorId': socket.id,
-        'full': false, //werkt nog niet echt
-        'inGame': false, //werkt nog niet echt
-        'board': null,
-        'turn': {name: '', color: ''},
-        'gameState': 0,
-        'turnCount': 0,
-        'players': [Utils.createPlayer(socket.id, creator)],
-      };
+      rooms[roomId] = Utils.createRoom(socket.id, creator);
       console.log('room created: ' + roomId);
       socket.join(roomId);
       callback(roomId, rooms[roomId]);
@@ -70,7 +64,7 @@ const io = new Server(server, {
     //misschien ooit spectators in het systeem??
     socket.on('joinRoom', (roomId, username, callback) => {
       const room = rooms[roomId];
-      if(room.full === true || !room) {
+      if(!room || room.full === true) {
         callback(null)
         return;
       }
@@ -84,16 +78,7 @@ const io = new Server(server, {
 
     socket.on('leaveRoom', (roomId, callback) => {
       console.log(socket.id + ' left room: ' + roomId);
-      
-      if(socket.id === rooms[roomId].creatorId) {
-        socket.to(roomId).emit("refresh", null, null);
-        Utils.leaveRoom(roomId, socket, rooms, io);
-      }
-      else {
-        const room = rooms[roomId];
-        Utils.leaveRoom(roomId, socket, rooms, io);
-        socket.to(roomId).emit("refresh", room, roomId);
-      }
+      Utils.leaveRoom(roomId, socket, rooms, io);
       callback();
     });
 

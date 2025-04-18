@@ -20,12 +20,15 @@ class Utils {
       socket.leave(roomId);
       // room.full = false;
       room.players.splice(playerIndex, 1);
-
+      
       if (id === room.creatorId) {
+        io.to(roomId).emit("refresh", null, null);
         io.socketsLeave(roomId);
         delete rooms[roomId];
         console.log("room deleted: " + roomId);
+        return;
       }
+      io.to(roomId).emit("refresh", room, roomId);
     }
   }
 
@@ -43,11 +46,24 @@ class Utils {
     return board;
   }
 
+  createRoom(id, creator) {
+    return {
+      'creatorId': id,
+      'full': false, //werkt nog niet echt
+      'inGame': false, //werkt nog niet echt
+      'board': null,
+      'turn': {name: '', color: ''},
+      'gameState': 0,
+      'turnCount': 0,
+      'players': [this.createPlayer(id, creator)],
+    }
+  }
+
   createPlayer(id, username) {
     return {
-      id,
-      username,
-      wins: 0,
+      'id': id,
+      'username': username,
+      'wins': 0,
     };
   }
   decideFirst(room) {

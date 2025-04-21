@@ -1,4 +1,8 @@
 {
+  "name": "4-in-a-row",
+  "version": "1.0.0",
+  "description": "Just 4 in a row backend stuff",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "express": "^4.21.2",

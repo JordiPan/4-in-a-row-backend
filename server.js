@@ -9,18 +9,11 @@ import Utils from './ServerUtils.js';
 // misschien ook cleanup voor promises die bezig zijn
 
 // TODO: reconnection met andere id 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const origin = process.env.PORT ? 'https://jordipan.github.io' : ['http://localhost:5500', 'http://127.0.0.1:5500'];
 const app = express();
 const server = http.createServer(app);
 const rooms = {};
-
-
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:5500');
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-});
-
 
 app.get('/', (req, res) => {
   res.send('<h1>aaaaaaaaaaaaaaaaaaaa</h1>');
@@ -28,8 +21,7 @@ app.get('/', (req, res) => {
 
 const io = new Server(server, {
     cors: {
-      origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
-        // methods: ["GET", "POST"],
+      origin: origin
     },
   });
 

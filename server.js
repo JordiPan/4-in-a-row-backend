@@ -3,11 +3,6 @@ import express from 'express';
 import http from 'http';
 import Utils from './ServerUtils.js';
 
-// als disconnect in game: 
-// verander disconnect in server side zodat het de andere dude in de room emit dat guy weg is. 
-// stuur dude terug naar waiting room via refresh
-// misschien ook cleanup voor promises die bezig zijn
-
 // TODO: reconnection met andere id 
 const PORT = process.env.PORT || 3000;
 const origin = process.env.PORT ? 'https://jordipan.github.io' : ['http://localhost:5500', 'http://127.0.0.1:5500'];

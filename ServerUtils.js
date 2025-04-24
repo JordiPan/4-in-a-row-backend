@@ -18,7 +18,7 @@ class Utils {
     );
     if (playerIndex >= 0) {
       socket.leave(roomId);
-      // room.full = false;
+      room.full = false;
       room.players.splice(playerIndex, 1);
       
       if (id === room.creatorId) {

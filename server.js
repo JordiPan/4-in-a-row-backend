@@ -58,7 +58,7 @@ const io = new Server(server, {
       room.players.push(Utils.createPlayer(socket.id, username));
       socket.join(roomId);
       console.log('user joined room');
-      // if (room.players.length >= 2) room.full = true;
+      if (room.players.length >= 2) room.full = true;
       socket.to(roomId).emit("refresh", room, roomId);
       callback(rooms[roomId]);
     });

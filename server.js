@@ -5,7 +5,7 @@ import Utils from './ServerUtils.js';
 
 // TODO: reconnection met andere id 
 const PORT = process.env.PORT || 3000;
-const origin = process.env.PORT ? 'https://jordipan.github.io' : ['http://localhost:5500', 'http://127.0.0.1:5500'];
+const origin = process.env.PORT ? ['https://jordipan.github.io', 'https://jordipan.nl'] : ['http://localhost:5500', 'http://127.0.0.1:5500'];
 const app = express();
 const server = http.createServer(app);
 const rooms = {};
